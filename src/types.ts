@@ -10,3 +10,11 @@ export interface Review {
   author: string;
   body: string;
 }
+
+export interface SearchHit {
+  productId: string;
+  title: string;
+  url: string;
+  // Unit price in dollars.
+  unitPrice: number;
+}

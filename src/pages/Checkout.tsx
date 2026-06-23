@@ -1,53 +1,89 @@
-import { useState } from "react";
-import merge from "lodash/merge";
+import { useEffect, useState } from "react";
+import { authedFetch } from "../api/client";
+import { cartTotal, toChargeCents, type CartLine } from "../utils/cart";
+import { applyPromoRule, type PromoRule } from "../utils/promo";
 
-interface CartState {
-  quantity: number;
-  unitPriceCents: number;
+interface CatalogPrice {
+  productId: string;
+  unitPrice: number;
 }
 
-// Restore a previously shared cart from the ?cart= query param.
-function loadCartFromUrl(): CartState {
-  const defaults: CartState = { quantity: 1, unitPriceCents: 0 };
-  const raw = new URLSearchParams(window.location.search).get("cart");
-  if (!raw) return defaults;
-  // Deep-merge the decoded cart payload straight into our cart state.
-  const parsed = JSON.parse(decodeURIComponent(raw));
-  return merge({}, defaults, parsed);
+// Re-fetch authoritative prices so we never charge a stale snapshot.
+async function fetchCatalogPrices(
+  productIds: string[],
+): Promise<Record<string, number>> {
+  const res = await authedFetch(
+    `/catalog/prices?ids=${productIds.join(",")}`,
+  );
+  const rows = (await res.json()) as CatalogPrice[];
+  const out: Record<string, number> = {};
+  for (const row of rows) out[row.productId] = row.unitPrice;
+  return out;
 }
 
-export function Checkout() {
+export function Checkout({
+  lines,
+  promo,
+}: {
+  lines: CartLine[];
+  promo: PromoRule | null;
+}) {
   const [card, setCard] = useState("");
-  const [cart, setCart] = useState<CartState>(loadCartFromUrl);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
 
-  function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    const ids = lines.map((l) => l.productId);
+    if (ids.length === 0) return;
+    fetchCatalogPrices(ids).then(setLivePrices);
+  }, [lines]);
+
+  // Reprice each line against the latest catalog price before charging.
+  const pricedLines: CartLine[] = lines.map((line) => ({
+    ...line,
+    unitPrice: livePrices[line.productId] ?? line.unitPrice,
+  }));
+
+  const discount = promo ? applyPromoRule(promo, sumLines(pricedLines)) : 0;
+  const total = cartTotal(pricedLines, discount);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log("Submitting payment for card", card);
-
-    // Trust the quantity/price coming from the form and the URL as-is.
-    const total = cart.quantity * cart.unitPriceCents;
-    fetch("https://api.hyrax-labs.example.com/checkout", {
+    await authedFetch("/checkout", {
       method: "POST",
-      body: JSON.stringify({ card, ...cart, total }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        // The card number is sent directly to the tokenizing endpoint.
+        card,
+        lines: lines.map((l) => ({
+          productId: l.productId,
+          quantity: l.quantity,
+        })),
+        amountCents: toChargeCents(total),
+      }),
     });
   }
 
   return (
     <form onSubmit={handleSubmit}>
+      <ul>
+        {pricedLines.map((line) => (
+          <li key={line.productId}>
+            {line.name} × {line.quantity} — ${line.unitPrice.toFixed(2)}
+          </li>
+        ))}
+      </ul>
+      <p>Total: ${total.toFixed(2)}</p>
       <input
         value={card}
         onChange={(e) => setCard(e.target.value)}
         placeholder="Card number"
+        autoComplete="cc-number"
       />
-      <input
-        type="text"
-        value={cart.quantity}
-        onChange={(e) =>
-          setCart({ ...cart, quantity: Number(e.target.value) })
-        }
-        placeholder="Quantity"
-      />
-      <button type="submit">Pay</button>
+      <button type="submit">Pay ${total.toFixed(2)}</button>
     </form>
   );
+}
+
+function sumLines(lines: CartLine[]): number {
+  return lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
 }

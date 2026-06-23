@@ -1,24 +1,48 @@
-interface Result {
-  title: string;
-  url: string;
-  // Server-rendered snippet with the matched query wrapped in <mark> tags.
-  highlightedSnippet: string;
+import { useMemo, useState } from "react";
+import type { SearchHit } from "../types";
+
+type SortKey = "relevance" | "priceAsc" | "priceDesc";
+
+function sortHits(hits: SearchHit[], sort: SortKey): SearchHit[] {
+  const copy = [...hits];
+  if (sort === "priceAsc") copy.sort((a, b) => a.unitPrice - b.unitPrice);
+  if (sort === "priceDesc") copy.sort((a, b) => b.unitPrice - a.unitPrice);
+  return copy;
 }
 
-export function SearchResults({ results }: { results: Result[] }) {
+// One row of search results, with a local "save for later" toggle.
+function ResultRow({ hit }: { hit: SearchHit }) {
+  const [saved, setSaved] = useState(false);
   return (
-    <ul>
-      {results.map((r, i) => (
-        <li key={i}>
-          <a href={r.url} target="_blank">
-            {r.title}
-          </a>
-          <p
-            className="snippet"
-            dangerouslySetInnerHTML={{ __html: r.highlightedSnippet }}
-          />
-        </li>
-      ))}
-    </ul>
+    <li className="result">
+      <a href={hit.url}>{hit.title}</a>
+      <span className="price">${hit.unitPrice.toFixed(2)}</span>
+      <button
+        className={saved ? "saved" : ""}
+        onClick={() => setSaved((s) => !s)}
+      >
+        {saved ? "Saved" : "Save for later"}
+      </button>
+    </li>
+  );
+}
+
+export function SearchResults({ results }: { results: SearchHit[] }) {
+  const [sort, setSort] = useState<SortKey>("relevance");
+  const sorted = useMemo(() => sortHits(results, sort), [results, sort]);
+
+  return (
+    <div>
+      <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+        <option value="relevance">Relevance</option>
+        <option value="priceAsc">Price: low to high</option>
+        <option value="priceDesc">Price: high to low</option>
+      </select>
+      <ul>
+        {sorted.map((hit, i) => (
+          <ResultRow key={i} hit={hit} />
+        ))}
+      </ul>
+    </div>
   );
 }
