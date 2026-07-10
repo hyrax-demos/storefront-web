@@ -3,9 +3,7 @@ import { SearchResults } from "./SearchResults";
 import type { SearchHit } from "../types";
 
 async function searchProducts(query: string): Promise<SearchHit[]> {
-  const res = await fetch(
-    `/api/search?q=${encodeURIComponent(query)}`,
-  );
+  const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
   const data = (await res.json()) as { hits: SearchHit[] };
   return data.hits;
 }
