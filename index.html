@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hyrax Labs Storefront</title>
+    <!--
+      Stripe.js — loaded as a static pinned literal per PCI DSS SAQ A requirements.
+      Stripe requires their script to be served directly from js.stripe.com; any
+      self-hosted or bundled copy violates their ToS and PCI compliance checks.
+      Loading it here (rather than via dynamic injection) means the URL is a
+      statically auditable literal that cannot be altered at runtime.
+    -->
+    <script src="https://js.stripe.com/v3/" crossorigin="anonymous"></script>
   </head>
   <body>
     <div id="root"></div>
