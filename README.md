@@ -1,7 +1,6 @@
 # storefront-web
 
-Customer-facing storefront for Hyrax Labs. React + Vite single-page app that
-talks to `checkout-service` and `inventory-api`.
+Customer-facing storefront for Hyrax Labs, built as a React + Vite single-page app that talks to `checkout-service` and `inventory-api`.
 
 ## Stack
 
