@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { authedFetch } from "../api/client";
-import { cartTotal, toChargeCents, type CartLine } from "../utils/cart";
+import { cartSubtotal, cartTotal, type CartLine } from "../utils/cart";
+import { dollarsToCents, formatCents } from "../utils/money";
 import { applyPromoRule, type PromoRule } from "../utils/promo";
 
 interface CatalogPrice {
@@ -37,14 +38,23 @@ export function Checkout({
     fetchCatalogPrices(ids).then(setLivePrices);
   }, [lines]);
 
-  // Reprice each line against the latest catalog price before charging.
-  const pricedLines: CartLine[] = lines.map((line) => ({
-    ...line,
-    unitPrice: livePrices[line.productId] ?? line.unitPrice,
-  }));
+  // Reprice each line against the latest catalog price before charging. The
+  // catalog quotes dollars, so convert to integer cents right here; everything
+  // downstream is integer cents.
+  const pricedLines: CartLine[] = lines.map((line) => {
+    const liveDollars = livePrices[line.productId];
+    return {
+      ...line,
+      unitPriceCents:
+        liveDollars !== undefined
+          ? dollarsToCents(liveDollars)
+          : line.unitPriceCents,
+    };
+  });
 
-  const discount = promo ? applyPromoRule(promo, sumLines(pricedLines)) : 0;
-  const total = cartTotal(pricedLines, discount);
+  const subtotalCents = cartSubtotal(pricedLines);
+  const discountCents = promo ? applyPromoRule(promo, subtotalCents) : 0;
+  const totalCents = cartTotal(pricedLines, discountCents);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,7 +68,7 @@ export function Checkout({
           productId: l.productId,
           quantity: l.quantity,
         })),
-        amountCents: toChargeCents(total),
+        amountCents: totalCents,
       }),
     });
   }
@@ -68,22 +78,18 @@ export function Checkout({
       <ul>
         {pricedLines.map((line) => (
           <li key={line.productId}>
-            {line.name} × {line.quantity} — ${line.unitPrice.toFixed(2)}
+            {line.name} × {line.quantity} — ${formatCents(line.unitPriceCents)}
           </li>
         ))}
       </ul>
-      <p>Total: ${total.toFixed(2)}</p>
+      <p>Total: ${formatCents(totalCents)}</p>
       <input
         value={card}
         onChange={(e) => setCard(e.target.value)}
         placeholder="Card number"
         autoComplete="cc-number"
       />
-      <button type="submit">Pay ${total.toFixed(2)}</button>
+      <button type="submit">Pay ${formatCents(totalCents)}</button>
     </form>
   );
-}
-
-function sumLines(lines: CartLine[]): number {
-  return lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
 }

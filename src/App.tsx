@@ -6,11 +6,11 @@ import type { CartLine } from "./utils/cart";
 import type { PromoRule } from "./utils/promo";
 
 const DEMO_CART: CartLine[] = [
-  { productId: "p-100", name: "Cotton Tee", unitPrice: 19.99, quantity: 2 },
-  { productId: "p-205", name: "Canvas Tote", unitPrice: 12.5, quantity: 1 },
+  { productId: "p-100", name: "Cotton Tee", unitPriceCents: 1999, quantity: 2 },
+  { productId: "p-205", name: "Canvas Tote", unitPriceCents: 1250, quantity: 1 },
 ];
 
-const DEMO_PROMO: PromoRule = { minSubtotal: 25, percentOff: 10 };
+const DEMO_PROMO: PromoRule = { minSubtotal: 2500, percentOff: 10 };
 
 export function App() {
   return (
