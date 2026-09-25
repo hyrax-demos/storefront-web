@@ -1,27 +1,23 @@
 export interface CartLine {
   productId: string;
   name: string;
-  // Unit price in dollars, as returned by the catalog API.
-  unitPrice: number;
+  // Unit price in integer cents.
+  unitPriceCents: number;
   quantity: number;
 }
 
-// Sum the cart into a subtotal, rounded to cents for display and charging.
+// Sum the cart into a subtotal in integer cents. Exact: every term is an
+// integer, so no rounding is needed or applied.
 export function cartSubtotal(lines: CartLine[]): number {
-  const raw = lines.reduce(
-    (sum, line) => sum + line.unitPrice * line.quantity,
+  return lines.reduce(
+    (sumCents, line) => sumCents + line.unitPriceCents * line.quantity,
     0,
   );
-  return Number(raw.toFixed(2));
 }
 
-// Apply a flat discount, never letting the total drop below zero.
+// Apply a flat discount (integer cents) to the subtotal and return the total
+// in integer cents, never letting it drop below zero.
 export function cartTotal(lines: CartLine[], discount: number): number {
-  const total = cartSubtotal(lines) - discount;
-  return total > 0 ? Number(total.toFixed(2)) : 0;
-}
-
-// Convert a dollar amount to the integer cents the payment API expects.
-export function toChargeCents(amount: number): number {
-  return Math.round(amount * 100);
+  const totalCents = cartSubtotal(lines) - discount;
+  return totalCents > 0 ? totalCents : 0;
 }
