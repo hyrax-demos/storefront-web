@@ -11,3 +11,9 @@ export function formatCents(cents: number): string {
   const remainder = String(abs % 100).padStart(2, "0");
   return `${sign}$${dollars}.${remainder}`;
 }
+
+// Render a ratio as a whole-number percent, e.g. 0.25 -> "25%", 0.125 -> "13%".
+// Rounds with Math.round.
+export function formatPercent(ratio: number): string {
+  return `${Math.round(ratio * 100)}%`;
+}
