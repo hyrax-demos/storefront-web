@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
   type ReactNode,
@@ -11,7 +12,9 @@ import {
   initialCartState,
   type CartLine,
   type CartLineInput,
+  type CartState,
 } from "./cartReducer";
+import { loadCart, saveCart } from "./cartStorage";
 
 export interface CartContextValue {
   lines: CartLine[];
@@ -23,9 +26,19 @@ export interface CartContextValue {
 export const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  // Persistence hooks in here: a lazy initializer as the third useReducer
-  // argument, and a save effect keyed on `state.lines`.
-  const [state, dispatch] = useReducer(cartReducer, initialCartState);
+  // Lazy init so the very first render already holds the restored cart.
+  const [state, dispatch] = useReducer(
+    cartReducer,
+    initialCartState,
+    (initial): CartState => {
+      const lines = loadCart();
+      return lines.length > 0 ? { lines } : initial;
+    },
+  );
+
+  useEffect(() => {
+    saveCart(state.lines);
+  }, [state.lines]);
 
   const addItem = useCallback(
     (line: CartLineInput) => dispatch({ type: "add", line }),
