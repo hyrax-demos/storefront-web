@@ -39,7 +39,7 @@ export function cartTotal(lines: CartLine[], discount: number): number {
   return centsToDollars(Math.max(totalCents, 0));
 }
 
-// Convert a dollar amount to the integer cents the payment API expects.
+/** Converts a dollar amount to the integer cents the payment API expects. */
 export function toChargeCents(amount: number): number {
   return dollarsToCents(amount);
 }
