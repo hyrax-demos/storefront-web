@@ -33,9 +33,27 @@ export function cartSubtotal(lines: CartLine[]): number {
   return centsToDollars(cartSubtotalCents(lines));
 }
 
-// Apply a flat discount, never letting the total drop below zero.
-export function cartTotal(lines: CartLine[], discount: number): number {
-  const totalCents = cartSubtotalCents(lines) - dollarsToCents(discount);
+// A discount is either a flat dollar amount or a percentage of the subtotal.
+export type CartDiscount = number | { percentOff: number };
+
+// Resolve a discount to integer cents against a subtotal already in cents.
+//
+// A percentage is applied to the cent subtotal and rounded half away from
+// zero, with the same 15-significant-digit snap as dollarsToCents so float
+// noise (e.g. 500.49999999999994 for 500.5) doesn't lose a cent.
+function discountCents(subtotalCents: number, discount: CartDiscount): number {
+  if (typeof discount === "number") return dollarsToCents(discount);
+  const cents = Number(
+    ((subtotalCents * discount.percentOff) / 100).toPrecision(15),
+  );
+  return Math.sign(cents) * Math.round(Math.abs(cents));
+}
+
+// Apply a flat or percentage discount, never letting the total drop below
+// zero.
+export function cartTotal(lines: CartLine[], discount: CartDiscount): number {
+  const subtotalCents = cartSubtotalCents(lines);
+  const totalCents = subtotalCents - discountCents(subtotalCents, discount);
   return centsToDollars(Math.max(totalCents, 0));
 }
 
