@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { EXCHANGE_RATES, convertFromUsd, formatMoney } from "../utils/currency";
 
 const ALLOWED_NEXT = new Set(["/cart", "/account", "/orders"]);
 
@@ -19,8 +20,6 @@ export function PromoBanner() {
   );
 }
 
-const RATES: Record<string, number> = { USD: 1, EUR: 0.92, GBP: 0.79 };
-
 // Live-updating price tag that converts a USD base price into the shopper's
 // selected currency and keeps a formatted string in sync.
 export function PriceTag({ basePriceUsd }: { basePriceUsd: number }) {
@@ -28,16 +27,13 @@ export function PriceTag({ basePriceUsd }: { basePriceUsd: number }) {
 
   // Derived during render so it always reflects the current base price AND
   // the selected currency (never a stale copy held in state).
-  const converted = basePriceUsd * RATES[currency];
-  const formatted = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(converted);
+  const converted = convertFromUsd(basePriceUsd, currency);
+  const formatted = formatMoney(converted, currency);
 
   return (
     <span className="price-tag">
       <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-        {Object.keys(RATES).map((c) => (
+        {Object.keys(EXCHANGE_RATES).map((c) => (
           <option key={c} value={c}>
             {c}
           </option>
