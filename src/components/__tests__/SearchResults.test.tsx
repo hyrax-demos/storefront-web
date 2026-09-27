@@ -30,6 +30,18 @@ describe("SearchResults", () => {
     expect(screen.getByText("$200.00")).toBeTruthy();
   });
 
+  it("formats prices as USD with a thousands separator for large amounts", () => {
+    const hits: SearchHit[] = [
+      { productId: "p-4", title: "Small Pin", url: "/p/4", unitPrice: 5 },
+      { productId: "p-5", title: "Big Sofa", url: "/p/5", unitPrice: 1234.5 },
+    ];
+    render(<SearchResults results={hits} />);
+
+    expect(screen.getByText("$5.00")).toBeTruthy();
+    expect(screen.getByText("$1,234.50")).toBeTruthy();
+    expect(screen.queryByText("$1234.50")).toBeNull();
+  });
+
   it("re-sorts ascending and descending by price without changing the hit set", () => {
     render(<SearchResults results={HITS} />);
 
