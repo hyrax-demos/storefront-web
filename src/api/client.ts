@@ -75,3 +75,51 @@ export async function fetchOrders() {
   const res = await authedFetch("/orders");
   return res.json();
 }
+
+export interface ReviewInput {
+  productId: string;
+  rating: number;
+  comment: string;
+}
+
+const REVIEW_SUBMIT_FALLBACK_ERROR =
+  "Could not submit your review. Please try again.";
+
+// Pull a human-readable message out of a failed response's JSON body
+// (`error` or `message`), falling back when the body has neither or is not JSON.
+async function errorMessageFrom(
+  res: Response,
+  fallback: string,
+): Promise<string> {
+  try {
+    const body: unknown = await res.json();
+    if (body && typeof body === "object") {
+      const { error, message } = body as { error?: unknown; message?: unknown };
+      if (typeof error === "string" && error) return error;
+      if (typeof message === "string" && message) return message;
+    }
+  } catch {
+    // Non-JSON or empty body: use the fallback.
+  }
+  return fallback;
+}
+
+// POST a product review to /api/reviews. Rejects with the server's error
+// message on a non-2xx response; network failures also reject.
+export async function submitReview(input: ReviewInput): Promise<unknown> {
+  const { productId, rating, comment } = input;
+  const res = await authedFetch("/reviews", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ productId, rating, comment }),
+  });
+  if (!res.ok) {
+    throw new Error(await errorMessageFrom(res, REVIEW_SUBMIT_FALLBACK_ERROR));
+  }
+  try {
+    return await res.json();
+  } catch {
+    // Successful responses may have no body (e.g. 201/204 without content).
+    return null;
+  }
+}
