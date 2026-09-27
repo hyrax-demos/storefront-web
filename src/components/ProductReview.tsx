@@ -12,6 +12,8 @@ const RATINGS = [1, 2, 3, 4, 5] as const;
 
 const SUBMIT_FALLBACK_ERROR = "Could not submit your review. Please try again.";
 const SUBMIT_SUCCESS_MESSAGE = "Thanks! Your review has been submitted.";
+// The app ships no stylesheet, so the over-limit colour is applied inline.
+const OVER_LIMIT_COLOR = "red";
 
 export function ProductReview({
   review,
@@ -32,6 +34,10 @@ export function ProductReview({
   const commentErrorId = `${baseId}-comment-error`;
   const commentCountId = `${baseId}-comment-count`;
   const ratingErrorId = `${baseId}-rating-error`;
+
+  // Count the trimmed text so the counter agrees with validateReview.
+  const commentLength = comment.trim().length;
+  const commentTooLong = commentLength > COMMENT_MAX_LENGTH;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -110,8 +116,17 @@ export function ProductReview({
                 : commentCountId
             }
           />
-          <span id={commentCountId} className="review-form__count">
-            {comment.trim().length}/{COMMENT_MAX_LENGTH}
+          <span
+            id={commentCountId}
+            className={
+              commentTooLong
+                ? "review-form__count review-form__count--over"
+                : "review-form__count"
+            }
+            style={commentTooLong ? { color: OVER_LIMIT_COLOR } : undefined}
+            data-testid="comment-count"
+          >
+            {commentLength}/{COMMENT_MAX_LENGTH}
           </span>
           {errors.comment && (
             <p id={commentErrorId} className="review-form__error" role="alert">

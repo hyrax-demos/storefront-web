@@ -92,6 +92,52 @@ describe("ProductReview", () => {
     });
   });
 
+  describe("character counter", () => {
+    function counter(): HTMLElement {
+      return screen.getByTestId("comment-count");
+    }
+
+    it("updates live as the comment is typed", () => {
+      renderForm();
+
+      expect(counter().textContent).toBe("0/500");
+
+      typeComment("Nice shoes");
+      expect(counter().textContent).toBe("10/500");
+
+      typeComment("Nice shoes, fit well");
+      expect(counter().textContent).toBe("20/500");
+    });
+
+    it("is not red at exactly 500 characters", () => {
+      renderForm();
+
+      typeComment("a".repeat(500));
+
+      expect(counter().textContent).toBe("500/500");
+      expect(counter().style.color).toBe("");
+      expect(counter().classList.contains("review-form__count--over")).toBe(
+        false,
+      );
+    });
+
+    it("turns red past 500 characters and back when shortened", () => {
+      renderForm();
+
+      typeComment("a".repeat(501));
+
+      expect(counter().textContent).toBe("501/500");
+      expect(counter().style.color).toBe("red");
+      expect(counter().classList.contains("review-form__count--over")).toBe(
+        true,
+      );
+
+      typeComment("a".repeat(499));
+      expect(counter().textContent).toBe("499/500");
+      expect(counter().style.color).toBe("");
+    });
+  });
+
   it("submits the trimmed review, shows success and resets the fields", async () => {
     submitReviewMock.mockResolvedValue({ id: "new-review" });
     renderForm();
