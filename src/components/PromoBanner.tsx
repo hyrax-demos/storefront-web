@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 
 const ALLOWED_NEXT = new Set(["/cart", "/account", "/orders"]);
 
@@ -25,18 +25,15 @@ const RATES: Record<string, number> = { USD: 1, EUR: 0.92, GBP: 0.79 };
 // selected currency and keeps a formatted string in sync.
 export function PriceTag({ basePriceUsd }: { basePriceUsd: number }) {
   const [currency, setCurrency] = useState("USD");
-  const [formatted, setFormatted] = useState("");
 
-  // Reformat whenever the base price changes.
-  useEffect(() => {
+  // Derived from both inputs so it updates on a currency or base-price change.
+  const formatted = useMemo(() => {
     const converted = basePriceUsd * RATES[currency];
-    setFormatted(
-      new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency,
-      }).format(converted),
-    );
-  }, [basePriceUsd]);
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+    }).format(converted);
+  }, [basePriceUsd, currency]);
 
   return (
     <span className="price-tag">
