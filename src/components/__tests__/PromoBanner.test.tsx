@@ -31,6 +31,20 @@ describe("PriceTag", () => {
 
     expect(screen.getByText("$5.00")).toBeTruthy();
   });
+
+  it("re-formats immediately when the currency changes and on base-price change", () => {
+    const { rerender } = render(<PriceTag basePriceUsd={100} />);
+    expect(screen.getByText("$100.00")).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "EUR" },
+    });
+    expect(screen.getByText("€92.00")).toBeTruthy();
+    expect(screen.queryByText("$100.00")).toBeNull();
+
+    rerender(<PriceTag basePriceUsd={200} />);
+    expect(screen.getByText("€184.00")).toBeTruthy();
+  });
 });
 
 describe("PromoBanner claimPromo redirect", () => {
