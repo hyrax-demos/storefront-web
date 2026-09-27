@@ -2,6 +2,7 @@ import { Checkout } from "./pages/Checkout";
 import { PromoBanner, PriceTag } from "./components/PromoBanner";
 import { ProductReview } from "./components/ProductReview";
 import { SearchBox } from "./components/SearchBox";
+import { CartBadge } from "./components/CartBadge";
 import { CartProvider } from "./context/CartContext";
 import type { PromoRule } from "./utils/promo";
 
@@ -11,7 +12,10 @@ export function App() {
   return (
     <CartProvider>
       <div>
-        <h1>Hyrax Labs Storefront</h1>
+        <header>
+          <h1>Hyrax Labs Storefront</h1>
+          <CartBadge />
+        </header>
         <PromoBanner />
         <PriceTag basePriceUsd={19.99} />
         <SearchBox />
