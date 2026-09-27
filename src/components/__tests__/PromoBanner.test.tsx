@@ -31,6 +31,36 @@ describe("PriceTag", () => {
 
     expect(screen.getByText("$5.00")).toBeTruthy();
   });
+
+  it("re-formats immediately when a different currency is selected", () => {
+    render(<PriceTag basePriceUsd={19.99} />);
+    expect(screen.getByText("$19.99")).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "EUR" },
+    });
+    expect(screen.getByText("€18.39")).toBeTruthy();
+    expect(screen.queryByText("$19.99")).toBeNull();
+
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "GBP" },
+    });
+    expect(screen.getByText("£15.79")).toBeTruthy();
+    expect(screen.queryByText("€18.39")).toBeNull();
+  });
+
+  it("still re-formats when the base price changes after a currency switch", () => {
+    const { rerender } = render(<PriceTag basePriceUsd={19.99} />);
+
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "EUR" },
+    });
+    expect(screen.getByText("€18.39")).toBeTruthy();
+
+    rerender(<PriceTag basePriceUsd={10} />);
+    expect(screen.getByText("€9.20")).toBeTruthy();
+    expect(screen.queryByText("€18.39")).toBeNull();
+  });
 });
 
 describe("PromoBanner claimPromo redirect", () => {
