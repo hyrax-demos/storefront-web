@@ -6,6 +6,7 @@ describe("ProductReview", () => {
   it("renders the review author and body", () => {
     render(
       <ProductReview
+        productId="p-100"
         review={{ id: "r1", author: "Jamie", body: "Works great, would buy again." }}
       />,
     );

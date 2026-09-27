@@ -20,6 +20,7 @@ export function App() {
       <PriceTag basePriceUsd={19.99} />
       <SearchBox />
       <ProductReview
+        productId="p-100"
         review={{ id: "1", author: "Anon", body: "Great product!" }}
       />
       <Checkout lines={DEMO_CART} promo={DEMO_PROMO} />
