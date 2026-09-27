@@ -41,4 +41,19 @@ describe("SearchResults", () => {
     fireEvent.change(select, { target: { value: "priceDesc" } });
     expect(titlesInOrder()).toEqual(["Pricey Chair", "Mid Lamp", "Cheap Mug"]);
   });
+
+  it("formats prices with formatMoney, adding a thousands separator for large prices", () => {
+    render(
+      <SearchResults
+        results={[
+          { productId: "p-4", title: "Small", url: "/p/4", unitPrice: 5 },
+          { productId: "p-5", title: "Large", url: "/p/5", unitPrice: 1234.5 },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("$5.00")).toBeTruthy();
+    expect(screen.getByText("$1,234.50")).toBeTruthy();
+    expect(screen.queryByText("$1234.50")).toBeNull();
+  });
 });
