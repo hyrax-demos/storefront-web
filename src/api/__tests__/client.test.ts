@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  authedFetch,
-  saveSession,
-  loadSession,
-  clearSession,
-} from "../client";
+import { authedFetch, saveSession, loadSession, clearSession } from "../client";
+
+// Fixture values standing in for session tokens in tests. These are not real
+// credentials — just fake, obviously-synthetic strings used to exercise the
+// refresh/replay logic.
+const FIXTURE_TOKEN_EXPIRED = "fixture-expired-tok";
+const FIXTURE_TOKEN_STALE = "fixture-stale-tok";
+const FIXTURE_TOKEN_REFRESHED = "fixture-refreshed-tok";
+const fixtureRefreshedTokenN = (n: number) => `fixture-refreshed-tok-${n}`;
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
@@ -29,7 +32,7 @@ function deferredRefreshResponse() {
 describe("authedFetch", () => {
   beforeEach(() => {
     clearSession();
-    saveSession("old-token");
+    saveSession(FIXTURE_TOKEN_EXPIRED);
   });
 
   afterEach(() => {
@@ -48,18 +51,18 @@ describe("authedFetch", () => {
     expect(res.status).toBe(200);
     // Only the original request, no refresh call and no replay.
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(loadSession()).toBe("old-token");
+    expect(loadSession()).toBe(FIXTURE_TOKEN_EXPIRED);
   });
 
   it("refreshes once and replays with the new token on a single 401", async () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith("/auth/refresh")) {
-        return jsonResponse(200, { token: "new-token" });
+        return jsonResponse(200, { token: FIXTURE_TOKEN_REFRESHED });
       }
       const auth = (init?.headers as Record<string, string> | undefined)?.[
         "Authorization"
       ];
-      if (auth === "Bearer old-token" || auth === undefined) {
+      if (auth === `Bearer ${FIXTURE_TOKEN_EXPIRED}` || auth === undefined) {
         return jsonResponse(401, {});
       }
       return jsonResponse(200, { data: [] });
@@ -69,7 +72,7 @@ describe("authedFetch", () => {
     const res = await authedFetch("/products");
 
     expect(res.status).toBe(200);
-    expect(loadSession()).toBe("new-token");
+    expect(loadSession()).toBe(FIXTURE_TOKEN_REFRESHED);
     const refreshCalls = fetchMock.mock.calls.filter(([url]) =>
       String(url).endsWith("/auth/refresh"),
     );
@@ -79,7 +82,7 @@ describe("authedFetch", () => {
   it("replays a 401'd request at most once even if the replay also 401s", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.endsWith("/auth/refresh")) {
-        return jsonResponse(200, { token: "new-token" });
+        return jsonResponse(200, { token: FIXTURE_TOKEN_REFRESHED });
       }
       // Every non-refresh call 401s, even after the refresh.
       return jsonResponse(401, {});
@@ -112,7 +115,7 @@ describe("authedFetch", () => {
       const auth = (init?.headers as Record<string, string> | undefined)?.[
         "Authorization"
       ];
-      if (auth === "Bearer new-token") {
+      if (auth === `Bearer ${FIXTURE_TOKEN_REFRESHED}`) {
         return jsonResponse(200, { data: [] });
       }
       return jsonResponse(401, {});
@@ -133,7 +136,7 @@ describe("authedFetch", () => {
     await Promise.resolve();
 
     // Only now resolve the refresh — every waiter should still be pending.
-    deferred.resolve(jsonResponse(200, { token: "new-token" }));
+    deferred.resolve(jsonResponse(200, { token: FIXTURE_TOKEN_REFRESHED }));
 
     const responses = await results;
 
@@ -141,7 +144,7 @@ describe("authedFetch", () => {
     for (const res of responses) {
       expect(res.status).toBe(200);
     }
-    expect(loadSession()).toBe("new-token");
+    expect(loadSession()).toBe(FIXTURE_TOKEN_REFRESHED);
   });
 
   it("rejects every waiting call (without hanging) when the shared refresh fails", async () => {
@@ -173,18 +176,23 @@ describe("authedFetch", () => {
 
   it("starts a brand-new refresh for a 401 that arrives after an earlier refresh finished", async () => {
     let refreshCallCount = 0;
-    // "old-token" and "stale-token" are treated as expired; "token-1" (the
-    // result of the first refresh) is accepted for the first call's replay,
-    // but becomes stale by the time of the second, independent 401.
+    // FIXTURE_TOKEN_EXPIRED and FIXTURE_TOKEN_STALE are treated as expired;
+    // the result of the first refresh is accepted for the first call's
+    // replay, but becomes stale by the time of the second, independent 401.
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith("/auth/refresh")) {
         refreshCallCount += 1;
-        return jsonResponse(200, { token: `token-${refreshCallCount}` });
+        return jsonResponse(200, {
+          token: fixtureRefreshedTokenN(refreshCallCount),
+        });
       }
       const auth = (init?.headers as Record<string, string> | undefined)?.[
         "Authorization"
       ];
-      if (auth === "Bearer old-token" || auth === "Bearer stale-token") {
+      if (
+        auth === `Bearer ${FIXTURE_TOKEN_EXPIRED}` ||
+        auth === `Bearer ${FIXTURE_TOKEN_STALE}`
+      ) {
         return jsonResponse(401, {});
       }
       return jsonResponse(200, { data: [] });
@@ -194,17 +202,17 @@ describe("authedFetch", () => {
     const first = await authedFetch("/products");
     expect(first.status).toBe(200);
     expect(refreshCallCount).toBe(1);
-    expect(loadSession()).toBe("token-1");
+    expect(loadSession()).toBe(fixtureRefreshedTokenN(1));
 
     // Simulate the session expiring again independently of the first
     // refresh (e.g. the server invalidated it), forcing a new 401.
-    saveSession("stale-token");
+    saveSession(FIXTURE_TOKEN_STALE);
 
     // A later, independent 401 must trigger its own refresh rather than
     // reusing or being blocked by the earlier, already-finished one.
     const second = await authedFetch("/orders");
     expect(second.status).toBe(200);
     expect(refreshCallCount).toBe(2);
-    expect(loadSession()).toBe("token-2");
+    expect(loadSession()).toBe(fixtureRefreshedTokenN(2));
   });
 });
