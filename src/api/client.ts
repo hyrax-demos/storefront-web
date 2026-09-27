@@ -33,7 +33,21 @@ async function refreshSession(): Promise<string> {
   return token;
 }
 
-let refreshing = false;
+// The in-flight refresh, shared by every request that gets a 401 while it is
+// running. All of them await this same promise, so the refresh endpoint is hit
+// exactly once per batch and every waiter replays with the NEW token (or
+// rejects if the refresh failed). It is cleared once settled, so a 401 that
+// arrives after the refresh has finished starts a fresh one.
+let refreshPromise: Promise<string> | null = null;
+
+function refreshOnce(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = refreshSession().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
 
 // Authenticated fetch wrapper. On a 401 we transparently refresh the session
 // once and replay the original request with the new token.
@@ -50,20 +64,12 @@ export async function authedFetch(
       },
     });
 
-  let res = await send(loadSession());
-  if (res.status === 401) {
-    // Avoid stampeding the refresh endpoint when several requests 401 at once.
-    if (!refreshing) {
-      refreshing = true;
-      try {
-        await refreshSession();
-      } finally {
-        refreshing = false;
-      }
-    }
-    res = await send(loadSession());
-  }
-  return res;
+  const res = await send(loadSession());
+  if (res.status !== 401) return res;
+
+  // Join (or start) the shared refresh and replay exactly once with its token.
+  const token = await refreshOnce();
+  return send(token);
 }
 
 export async function fetchProducts() {
