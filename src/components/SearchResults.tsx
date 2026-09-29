@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { SearchHit } from "../types";
+import { formatMoney } from "../utils/currency";
 
 type SortKey = "relevance" | "priceAsc" | "priceDesc";
 
@@ -16,7 +17,7 @@ function ResultRow({ hit }: { hit: SearchHit }) {
   return (
     <li className="result">
       <a href={hit.url}>{hit.title}</a>
-      <span className="price">${hit.unitPrice.toFixed(2)}</span>
+      <span className="price">{formatMoney(hit.unitPrice, "USD")}</span>
       <button
         className={saved ? "saved" : ""}
         onClick={() => setSaved((s) => !s)}
