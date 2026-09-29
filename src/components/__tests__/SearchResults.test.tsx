@@ -41,4 +41,17 @@ describe("SearchResults", () => {
     fireEvent.change(select, { target: { value: "priceDesc" } });
     expect(titlesInOrder()).toEqual(["Pricey Chair", "Mid Lamp", "Cheap Mug"]);
   });
+
+  it("formats large prices with a thousands separator", () => {
+    render(
+      <SearchResults
+        results={[
+          { productId: "p-4", title: "Sofa", url: "/p/4", unitPrice: 1234.5 },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("$1,234.50")).toBeTruthy();
+    expect(screen.queryByText("$1234.50")).toBeNull();
+  });
 });
