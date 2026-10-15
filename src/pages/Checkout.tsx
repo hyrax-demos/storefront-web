@@ -15,6 +15,9 @@ async function fetchCatalogPrices(
   const res = await authedFetch(
     `/catalog/prices?ids=${productIds.join(",")}`,
   );
+  if (!res.ok) {
+    throw new Error(`Failed to fetch catalog prices: ${res.status}`);
+  }
   const rows = (await res.json()) as CatalogPrice[];
   const out: Record<string, number> = {};
   for (const row of rows) out[row.productId] = row.unitPrice;
@@ -30,11 +33,19 @@ export function Checkout({
 }) {
   const [card, setCard] = useState("");
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [priceError, setPriceError] = useState<string | null>(null);
 
   useEffect(() => {
     const ids = lines.map((l) => l.productId);
     if (ids.length === 0) return;
-    fetchCatalogPrices(ids).then(setLivePrices);
+    setPriceError(null);
+    fetchCatalogPrices(ids)
+      .then(setLivePrices)
+      .catch((err: unknown) => {
+        setPriceError(
+          err instanceof Error ? err.message : "Unable to load current prices",
+        );
+      });
   }, [lines]);
 
   // Reprice each line against the latest catalog price before charging.
@@ -65,6 +76,11 @@ export function Checkout({
 
   return (
     <form onSubmit={handleSubmit}>
+      {priceError && (
+        <p role="alert" style={{ color: "red" }}>
+          {priceError} — please refresh to try again.
+        </p>
+      )}
       <ul>
         {pricedLines.map((line) => (
           <li key={line.productId}>
@@ -79,7 +95,9 @@ export function Checkout({
         placeholder="Card number"
         autoComplete="cc-number"
       />
-      <button type="submit">Pay ${total.toFixed(2)}</button>
+      <button type="submit" disabled={priceError !== null}>
+        Pay ${total.toFixed(2)}
+      </button>
     </form>
   );
 }
