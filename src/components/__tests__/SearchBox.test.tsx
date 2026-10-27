@@ -16,6 +16,28 @@ const MID_LAMP: SearchHit = {
   unitPrice: 40,
 };
 
+// Every value passed to a setter returned by the mocked useState below. React
+// 18 drops a state update on an unmounted component without a warning, so this
+// list is how a test sees whether one was attempted.
+const { stateSetterCalls } = vi.hoisted(() => ({
+  stateSetterCalls: [] as unknown[],
+}));
+
+vi.mock("react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react")>();
+  return {
+    ...actual,
+    useState: ((initial: unknown) => {
+      const [value, setValue] = actual.useState(initial);
+      const recordingSetter = (next: unknown) => {
+        stateSetterCalls.push(next);
+        setValue(next);
+      };
+      return [value, recordingSetter];
+    }) as typeof actual.useState,
+  };
+});
+
 type FakeResponse = { ok: boolean; json: () => Promise<{ hits: SearchHit[] }> };
 
 // One entry per fetch call: the URL it was called with and a way to settle
@@ -29,6 +51,7 @@ let pending: PendingFetch[];
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  stateSetterCalls.length = 0;
   pending = [];
   fetchMock = vi.fn((url: string) => {
     return new Promise<FakeResponse>((resolve) => {
@@ -103,9 +126,12 @@ describe("SearchBox", () => {
 
     typeQuery("mug");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(stateSetterCalls.includes("mug")).toBe(true);
 
     unmount();
+    stateSetterCalls.length = 0;
     pendingFor("/api/search?q=mug").respond([CHEAP_MUG]);
     await expect(flush()).resolves.toBeUndefined();
+    expect(stateSetterCalls).toEqual([]);
   });
 });
