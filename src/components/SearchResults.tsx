@@ -39,8 +39,8 @@ export function SearchResults({ results }: { results: SearchHit[] }) {
         <option value="priceDesc">Price: high to low</option>
       </select>
       <ul>
-        {sorted.map((hit, i) => (
-          <ResultRow key={i} hit={hit} />
+        {sorted.map((hit) => (
+          <ResultRow key={hit.productId} hit={hit} />
         ))}
       </ul>
     </div>
