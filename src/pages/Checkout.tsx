@@ -34,7 +34,15 @@ export function Checkout({
   useEffect(() => {
     const ids = lines.map((l) => l.productId);
     if (ids.length === 0) return;
-    fetchCatalogPrices(ids).then(setLivePrices);
+    // A response is applied only while its lines are still the current ones; a
+    // newer lines value or unmount runs this cleanup and drops it.
+    let cancelled = false;
+    fetchCatalogPrices(ids).then((prices) => {
+      if (!cancelled) setLivePrices(prices);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [lines]);
 
   // Reprice each line against the latest catalog price before charging.

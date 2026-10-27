@@ -41,4 +41,22 @@ describe("SearchResults", () => {
     fireEvent.change(select, { target: { value: "priceDesc" } });
     expect(titlesInOrder()).toEqual(["Pricey Chair", "Mid Lamp", "Cheap Mug"]);
   });
+
+  it("keeps the saved state on the product after re-sorting", () => {
+    // Saves Cheap Mug (first in relevance order), then sorts by price high
+    // to low so Cheap Mug moves to the last row.
+    render(<SearchResults results={HITS} />);
+
+    const mugButton = screen.getAllByRole("button")[0];
+    fireEvent.click(mugButton);
+    expect(mugButton.textContent).toBe("Saved");
+
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "priceDesc" },
+    });
+    expect(titlesInOrder()).toEqual(["Pricey Chair", "Mid Lamp", "Cheap Mug"]);
+    expect(
+      screen.getAllByRole("button").map((el) => el.textContent ?? ""),
+    ).toEqual(["Save for later", "Save for later", "Saved"]);
+  });
 });
