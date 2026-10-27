@@ -9,6 +9,24 @@ import {
 import { SearchBox } from "../SearchBox";
 import type { SearchHit } from "../../types";
 
+// React 18 silently ignores a state update on an unmounted component, so the
+// only way to see whether SearchBox still calls setHits after unmount is to
+// record the values passed to every useState setter. The wrapper forwards each
+// call to the real setter, so rendering behaves as with the real useState.
+const stateUpdates = vi.hoisted(() => [] as unknown[]);
+vi.mock("react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react")>();
+  function useState(initial?: unknown) {
+    const [value, setValue] = actual.useState(initial);
+    const recordingSetValue: typeof setValue = (next) => {
+      stateUpdates.push(next);
+      setValue(next);
+    };
+    return [value, recordingSetValue];
+  }
+  return { ...actual, useState };
+});
+
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
@@ -108,7 +126,9 @@ describe("SearchBox", () => {
     expect(shownTitles()).toEqual([]);
   });
 
-  it("does not throw when a response lands after unmount", async () => {
+  it("does not set state when a response lands after unmount", async () => {
+    // Input: "mug" past the debounce, then unmount before the "mug" response
+    // arrives.
     vi.useFakeTimers();
     const { fetchMock, respond } = stubFetch();
     const { unmount } = render(<SearchBox />);
@@ -116,11 +136,12 @@ describe("SearchBox", () => {
     type("mug");
     advance(300);
     unmount();
+    stateUpdates.length = 0;
 
-    await expect(
-      respond("/api/search?q=mug", [CHEAP_MUG]),
-    ).resolves.toBeUndefined();
+    await respond("/api/search?q=mug", [CHEAP_MUG]);
+
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(stateUpdates).toEqual([]);
   });
 
   it("waits for the debounce before searching", () => {
