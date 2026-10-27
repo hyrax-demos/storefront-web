@@ -13,7 +13,7 @@ async function fetchCatalogPrices(
   productIds: string[],
 ): Promise<Record<string, number>> {
   const res = await authedFetch(
-    `/catalog/prices?ids=${productIds.join(",")}`,
+    `/catalog/prices?ids=${productIds.map(encodeURIComponent).join(",")}`,
   );
   const rows = (await res.json()) as CatalogPrice[];
   const out: Record<string, number> = {};
