@@ -31,6 +31,24 @@ describe("PriceTag", () => {
 
     expect(screen.getByText("$5.00")).toBeTruthy();
   });
+
+  // Keeps basePriceUsd fixed and only switches the currency select, so the
+  // shown price can update only if it follows the selected currency.
+  it("reformats the price when the selected currency changes", () => {
+    render(<PriceTag basePriceUsd={19.99} />);
+
+    expect(screen.getByText("$19.99")).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "EUR" },
+    });
+    expect(screen.getByText("€18.39")).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "GBP" },
+    });
+    expect(screen.getByText("£15.79")).toBeTruthy();
+  });
 });
 
 describe("PromoBanner claimPromo redirect", () => {
