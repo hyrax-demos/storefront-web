@@ -25,13 +25,17 @@ export function SearchBox() {
       setHits([]);
       return;
     }
+    // A response is applied only while its query is still the current one; a
+    // newer query, clearing the input, or unmount runs this cleanup and drops it.
+    let cancelled = false;
     timer.current = setTimeout(() => {
       searchProducts(query).then((results) => {
-        setHits(results);
+        if (!cancelled) setHits(results);
       });
     }, DEBOUNCE_MS);
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      cancelled = true;
     };
   }, [query]);
 
