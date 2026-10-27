@@ -25,12 +25,15 @@ export function SearchBox() {
       setHits([]);
       return;
     }
+    // Drops responses for a query that is no longer current, or that land after unmount.
+    let active = true;
     timer.current = setTimeout(() => {
       searchProducts(query).then((results) => {
-        setHits(results);
+        if (active) setHits(results);
       });
     }, DEBOUNCE_MS);
     return () => {
+      active = false;
       if (timer.current) clearTimeout(timer.current);
     };
   }, [query]);
